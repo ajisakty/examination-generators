@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 
 @dataclass
@@ -54,3 +54,38 @@ class AnswerKeyMetadata:
     created_date: str = ""
     random_seed: Optional[int] = None
     content_hash: str = ""
+
+
+# --- Model Hasil Pemindaian (Scanner) ---
+
+@dataclass
+class QuestionAnswerResult:
+    """Hasil pembacaan satu nomor jawaban."""
+    question_number: int                 # Nomor soal (1-100)
+    selected_option: Optional[str]       # "A", "B", "C", "D", atau None jika kosong
+    status: str                          # "jelas", "kosong", "ganda", "samar"
+    needs_review: bool                   # True jika ambigu / samar / ganda
+    scores: Dict[str, float] = field(default_factory=dict) # Skor kegelapan per opsi
+    crop_image_path: Optional[str] = None # Path potongan gambar jika perlu_review
+
+
+@dataclass
+class SheetScanResult:
+    """Hasil pembacaan satu lembar jawaban peserta."""
+    sheet_index: int                     # Nomor urut lembar dalam PDF scan (mulai 1)
+    detected_set: str                    # Kode exam yang terdeteksi ("A", "B", "R", atau "?")
+    trainee_id: str = ""                 # ID peserta (6 digit)
+    date_str: str = ""                   # Tanggal ujian (6 digit)
+    course_code: str = ""                # Kode kursus dari lembar
+    answers: Dict[int, QuestionAnswerResult] = field(default_factory=dict)
+    warnings: List[str] = field(default_factory=list)
+    needs_review: bool = False           # True jika ada jawaban atau metadata yang perlu direview
+
+
+@dataclass
+class ScannerBatchResult:
+    """Hasil pemindaian satu batch PDF lembar jawaban."""
+    pdf_path: str
+    total_sheets: int
+    sheets: List[SheetScanResult] = field(default_factory=list)
+    review_count: int = 0

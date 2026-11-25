@@ -3,7 +3,15 @@ Core package untuk backend Exam Generator.
 Logika backend murni tanpa antarmuka grafis (GUI) atau print langsung.
 """
 
-from .models import Exam, ExamConfig, Question, AnswerKeyMetadata
+from .models import (
+    Exam,
+    ExamConfig,
+    Question,
+    AnswerKeyMetadata,
+    QuestionAnswerResult,
+    SheetScanResult,
+    ScannerBatchResult,
+)
 from .excel_loader import load_and_validate_exam_excel, ExcelValidationError
 from .shuffler import create_set_b
 from .answer_key import (
@@ -21,12 +29,16 @@ from .form_profile import (
     detect_form_variant,
     render_profile_overlay,
 )
+from .scanner import scan_single_sheet, scan_pdf_batch, read_exam_code
 
 __all__ = [
     "Exam",
     "ExamConfig",
     "Question",
     "AnswerKeyMetadata",
+    "QuestionAnswerResult",
+    "SheetScanResult",
+    "ScannerBatchResult",
     "load_and_validate_exam_excel",
     "ExcelValidationError",
     "create_set_b",
@@ -42,4 +54,7 @@ __all__ = [
     "build_default_form_profile",
     "detect_form_variant",
     "render_profile_overlay",
+    "scan_single_sheet",
+    "scan_pdf_batch",
+    "read_exam_code",
 ]

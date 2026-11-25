@@ -144,8 +144,9 @@ def detect_form_variant(img_bgr: np.ndarray) -> int:
     diff = r.astype(int) - b.astype(int)
     red_count = int(np.sum(diff > 20))
 
-    # Threshold adaptif
-    if red_count > 37000:
+    # Threshold antara nilai 3-opsi (~32,000) dan 4-opsi (~36,000+)
+    # Diukur dari fixture: 3-opsi ≈ 32,445 dan 4-opsi ≈ 36,847 (diff > 20)
+    if red_count > 34500:
         return 4
     return 3
 
