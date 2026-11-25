@@ -13,6 +13,14 @@ from .answer_key import (
     calculate_key_hash,
 )
 from .exam_pdf import generate_exam_pdf
+from .scanner_align import align_form_page, find_markers
+from .form_profile import (
+    FormProfile,
+    BoxCoord,
+    build_default_form_profile,
+    detect_form_variant,
+    render_profile_overlay,
+)
 
 __all__ = [
     "Exam",
@@ -27,4 +35,11 @@ __all__ = [
     "validate_cross_set_integrity",
     "calculate_key_hash",
     "generate_exam_pdf",
+    "align_form_page",
+    "find_markers",
+    "FormProfile",
+    "BoxCoord",
+    "build_default_form_profile",
+    "detect_form_variant",
+    "render_profile_overlay",
 ]
