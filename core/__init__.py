@@ -11,6 +11,10 @@ from .models import (
     QuestionAnswerResult,
     SheetScanResult,
     ScannerBatchResult,
+    SheetScoreResult,
+    QuestionAnalysisResult,
+    ExamAnalysisSummary,
+    ExamAnalysisReport,
 )
 from .excel_loader import load_and_validate_exam_excel, ExcelValidationError
 from .shuffler import create_set_b
@@ -30,6 +34,8 @@ from .form_profile import (
     render_profile_overlay,
 )
 from .scanner import scan_single_sheet, scan_pdf_batch, read_exam_code
+from .analyzer import calculate_sheet_score, analyze_exam_results
+from .report_pdf import generate_analysis_report_pdf
 
 __all__ = [
     "Exam",
@@ -39,6 +45,10 @@ __all__ = [
     "QuestionAnswerResult",
     "SheetScanResult",
     "ScannerBatchResult",
+    "SheetScoreResult",
+    "QuestionAnalysisResult",
+    "ExamAnalysisSummary",
+    "ExamAnalysisReport",
     "load_and_validate_exam_excel",
     "ExcelValidationError",
     "create_set_b",
@@ -57,4 +67,7 @@ __all__ = [
     "scan_single_sheet",
     "scan_pdf_batch",
     "read_exam_code",
+    "calculate_sheet_score",
+    "analyze_exam_results",
+    "generate_analysis_report_pdf",
 ]

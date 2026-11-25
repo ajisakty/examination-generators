@@ -89,3 +89,66 @@ class ScannerBatchResult:
     total_sheets: int
     sheets: List[SheetScanResult] = field(default_factory=list)
     review_count: int = 0
+
+
+# --- Model Hasil Analisis & Laporan Ujian ---
+
+@dataclass
+class SheetScoreResult:
+    """Hasil penilaian satu lembar jawaban peserta."""
+    sheet_index: int
+    set_name: str                        # "A" atau "B"
+    correct_count: int                   # Jumlah jawaban benar
+    total_questions: int                 # Jumlah soal
+    score: int                           # Skor akhir (0 - 100), dibulatkan ke bawah
+    is_passed: bool                      # True jika score >= pass_mark
+    wrong_questions: List[int] = field(default_factory=list) # Nomor urut soal salah di lembar ini
+
+
+@dataclass
+class QuestionAnalysisResult:
+    """Hasil analisis tingkat kesulitan dan performa per butir soal (Question Code)."""
+    question_code: str                   # Kode unik soal
+    ata: str                             # ATA chapter
+    question_text: str                   # Teks soal lengkap
+    correct_answer: str                  # Kunci jawaban ("A", "B", "C", atau "D")
+    order_number_a: Optional[int] = None # Nomor soal di Set A
+    order_number_b: Optional[int] = None # Nomor soal di Set B
+    correct_count_a: int = 0             # Jumlah jawaban benar di Set A
+    total_participants_a: int = 0        # Total peserta Set A
+    rate_a: Optional[float] = None       # Persentase keberhasilan di Set A (%)
+    correct_count_b: int = 0             # Jumlah jawaban benar di Set B
+    total_participants_b: int = 0        # Total peserta Set B
+    rate_b: Optional[float] = None       # Persentase keberhasilan di Set B (%)
+    total_correct: int = 0               # Total jawaban benar gabungan (A + B)
+    total_participants: int = 0          # Total seluruh peserta (A + B)
+    total_rate: float = 0.0              # Persentase keberhasilan gabungan (%)
+    highlight_status: Optional[str] = None # "TERLALU_MUDAH", "TERLALU_SULIT", atau None
+
+
+@dataclass
+class ExamAnalysisSummary:
+    """Ringkasan statistik hasil ujian keseluruhan."""
+    total_sheets_a: int = 0
+    total_sheets_b: int = 0
+    total_sheets: int = 0
+    average_score_a: float = 0.0
+    average_score_b: float = 0.0
+    average_score_total: float = 0.0
+    passed_count: int = 0
+    failed_count: int = 0
+    pass_percentage: float = 0.0
+    pass_mark: float = 75.0
+    highest_score: int = 0
+    lowest_score: int = 0
+
+
+@dataclass
+class ExamAnalysisReport:
+    """Container lengkap seluruh hasil analisis ujian siap cetak PDF."""
+    config: ExamConfig
+    summary: ExamAnalysisSummary
+    sheet_scores: List[SheetScoreResult] = field(default_factory=list)
+    question_analyses: List[QuestionAnalysisResult] = field(default_factory=list)
+    highlighted_questions: List[QuestionAnalysisResult] = field(default_factory=list)
+
