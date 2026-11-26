@@ -15,45 +15,23 @@ from PIL import Image
 
 from .models import QuestionAnswerResult, SheetScanResult, ScannerBatchResult
 from .scanner_align import align_form_page, CANONICAL_WIDTH, CANONICAL_HEIGHT
-from .form_profile import detect_form_variant
+from .form_profile import build_default_form_profile, detect_form_variant, FormProfile
 
 
-# Tata letak kanonikal kisi jawaban resmi (4 Blok x 25 Baris)
-# Koordinat ini adalah nilai Y-center dari baris bubble setelah warp ke kanonikal 1200x1700
-ROW_Y = [
-    802, 831, 861, 891, 920,
-    949, 979, 1009, 1042, 1068,
-    1098, 1131, 1158, 1188, 1220,
-    1247, 1278, 1310, 1335, 1370,
-    1397, 1423, 1457, 1484, 1515
-]
-
-COL_OFFSETS_4 = [
-    [341, 368, 396, 425],  # Blok 1 (No. 1 - 25)
-    [539, 567, 596, 626],  # Blok 2 (No. 26 - 50)
-    [736, 764, 794, 823],  # Blok 3 (No. 51 - 75)
-    [933, 961, 991, 1020]  # Blok 4 (No. 76 - 100)
-]
-
-COL_OFFSETS_3 = [
-    [341, 368, 396],
-    [539, 567, 596],
-    [736, 764, 794],
-    [933, 961, 991]
-]
-
-# Koordinat kotak Exam Code (A, B, R) pada gambar kanonikal
-# Kotak berisi silang peserta untuk memilih set ujian (A/B/R)
-EXAM_CODE_BOXES = {
-    "A": (202, 125, 14, 14),
-    "B": (218, 125, 14, 14),
-    "R": (235, 125, 14, 14),
+# Cache profil form default untuk 3 opsi dan 4 opsi
+_DEFAULT_PROFILES: Dict[int, FormProfile] = {
+    3: build_default_form_profile(num_options=3),
+    4: build_default_form_profile(num_options=4),
 }
 
 
-def read_exam_code(gray_img: np.ndarray) -> Tuple[str, List[str]]:
+def read_exam_code(
+    gray_img: np.ndarray,
+    exam_boxes: Optional[Dict[str, Dict[str, int]]] = None,
+) -> Tuple[str, List[str]]:
     """
     Membaca kode exam (A/B/R) dan mendeteksi bekas hapusan tipis.
+    Mendukung koordinat kotak dari FormProfile (3 opsi vs 4 opsi).
     
     Returns:
         Tuple[str, List[str]]: Huruf kode exam yang dipilih dan daftar pesan peringatan.
@@ -61,7 +39,14 @@ def read_exam_code(gray_img: np.ndarray) -> Tuple[str, List[str]]:
     warnings: List[str] = []
     box_scores: Dict[str, Tuple[float, int]] = {}
 
-    for label, (bx, by, bw, bh) in EXAM_CODE_BOXES.items():
+    boxes = exam_boxes or {
+        "A": {"x": 202, "y": 125, "w": 14, "h": 14},
+        "B": {"x": 218, "y": 125, "w": 14, "h": 14},
+        "R": {"x": 235, "y": 125, "w": 14, "h": 14},
+    }
+
+    for label, b in boxes.items():
+        bx, by, bw, bh = b["x"], b["y"], b["w"], b["h"]
         crop = gray_img[by:by+bh, bx:bx+bw]
         dp = int(np.sum(crop < 130))
         mean_dark = float(255.0 - np.mean(crop))
@@ -92,11 +77,14 @@ def scan_single_sheet(
     total_questions: int = 100,
     expected_set: Optional[str] = None,
     review_output_dir: Optional[Path] = None,
+    profile: Optional[FormProfile] = None,
 ) -> SheetScanResult:
     """
     Memproses satu lembar gambar scan:
     - Meluruskan halaman
+    - Menggunakan profil form (3 opsi vs 4 opsi dari hasil kalibrasi)
     - Mengukur tinta pada setiap opsi dengan ambang adaptif per lembar
+    - Melakukan sanity check (semua jawaban identik atau lembar kosong)
     - Mengklasifikasikan status jawaban
     - Menyimpan potongan gambar jika status perlu_review
     """
@@ -104,11 +92,10 @@ def scan_single_sheet(
     gray = cv2.cvtColor(warped, cv2.COLOR_BGR2GRAY)
 
     num_options = detect_form_variant(warped)
-    col_offsets = COL_OFFSETS_4 if num_options == 4 else COL_OFFSETS_3
-    option_letters = ["A", "B", "C", "D"] if num_options == 4 else ["A", "B", "C"]
+    current_profile = profile or _DEFAULT_PROFILES.get(num_options, _DEFAULT_PROFILES[4])
 
-    # Baca Exam Code
-    detected_set, code_warnings = read_exam_code(gray)
+    # Baca Exam Code menggunakan profil yang sesuai
+    detected_set, code_warnings = read_exam_code(gray, current_profile.exam_code_boxes)
     warnings = list(align_warnings) + list(code_warnings)
 
     if expected_set and detected_set != "?" and detected_set != expected_set:
@@ -121,30 +108,27 @@ def scan_single_sheet(
     # Latar kertas diambil dari sampling margin kosong (y: 200..300, x: 200..300)
     paper_sample = gray[200:300, 200:300]
     paper_mean = float(np.mean(paper_sample))
-    # Threshold adaptif: lembar gelap/kotor menyesuaikan ambang batas
-    dark_threshold = 140 if paper_mean > 240 else 130
+    # Threshold adaptif relatif terhadap background kertas
+    dark_threshold = paper_mean - 35.0
 
     answers: Dict[int, QuestionAnswerResult] = {}
     sheet_needs_review = False
 
     for q in range(1, total_questions + 1):
-        col_idx = (q - 1) // 25
-        r_idx = (q - 1) % 25
-        if col_idx >= len(col_offsets):
+        q_str = str(q)
+        if q_str not in current_profile.answer_grid:
             break
 
-        cy = ROW_Y[r_idx]
-        cols = col_offsets[col_idx]
-
+        opts_map = current_profile.answer_grid[q_str]
         opt_scores: Dict[str, float] = {}
         opt_dps: Dict[str, int] = {}
 
-        for opt_idx, opt_letter in enumerate(option_letters):
-            cx = cols[opt_idx]
-            crop = gray[cy-7:cy+8, cx-7:cx+8]
+        for opt_letter, b in opts_map.items():
+            bx, by, bw, bh = b["x"], b["y"], b["w"], b["h"]
+            crop = gray[by:by+bh, bx:bx+bw]
             dp = int(np.sum(crop < dark_threshold))
             mean_darkness = float(255.0 - np.mean(crop))
-            # Skor gabungan: mean_darkness + 1.5 * dp
+            # Skor gabungan: darkness + 1.5 * dp
             score = mean_darkness + 1.5 * dp
             opt_scores[opt_letter] = score
             opt_dps[opt_letter] = dp
@@ -158,12 +142,6 @@ def scan_single_sheet(
         score2 = opt_scores[top2] if top2 else 0.0
 
         # Kategori status jawaban:
-        # Ambang tanda aktif adaptif: score1 >= 8.0
-        # Ganda: score2 cukup dekat dengan score1 (misal score2 >= 15.0 dan score2 >= 0.7 * score1)
-        # Samar: score1 di ambang batas ragu (misal 5.0 <= score1 < 8.0)
-        # Kosong: score1 < 5.0
-        # Jelas: score1 >= 8.0 dan score2 jauh di bawah (score2 < 0.6 * score1 atau score2 < 12.0)
-
         selected_option: Optional[str] = None
         status: str = "jelas"
         needs_review: bool = False
@@ -178,7 +156,7 @@ def scan_single_sheet(
         elif top2 and score2 >= 15.0 and score2 >= 0.65 * score1:
             status = "ganda"
             needs_review = True
-            selected_option = top1 # opsi paling tebal tapi ditandai ganda
+            selected_option = top1  # opsi paling tebal tapi ditandai ganda
         else:
             status = "jelas"
             selected_option = top1
@@ -188,10 +166,14 @@ def scan_single_sheet(
             sheet_needs_review = True
             if review_output_dir:
                 review_output_dir.mkdir(parents=True, exist_ok=True)
-                # Potong seluruh area nomor soal (semua opsi A-D)
-                x_start = cols[0] - 15
-                x_end = cols[-1] + 15
-                q_crop = warped[cy-12:cy+13, x_start:x_end]
+                # Potong seluruh area nomor soal (semua opsi A-C/D)
+                all_xs = [b["x"] for b in opts_map.values()]
+                all_ys = [b["y"] for b in opts_map.values()]
+                min_x = max(0, min(all_xs) - 15)
+                max_x = min(CANONICAL_WIDTH, max(all_xs) + 30)
+                min_y = max(0, min(all_ys) - 5)
+                max_y = min(CANONICAL_HEIGHT, max(all_ys) + 20)
+                q_crop = warped[min_y:max_y, min_x:max_x]
                 crop_file = review_output_dir / f"sheet_{sheet_index}_q{q}.png"
                 cv2.imwrite(str(crop_file), q_crop)
                 crop_path_str = str(crop_file)
@@ -204,6 +186,30 @@ def scan_single_sheet(
             scores=opt_scores,
             crop_image_path=crop_path_str,
         )
+
+    # Sanity checks per lembar:
+    valid_answers = [ans.selected_option for ans in answers.values() if ans.selected_option is not None]
+    total_evaluated = len(answers)
+
+    # 1. Sanity check: sebagian besar kotak kosong / tidak berubah
+    if total_evaluated >= 5 and len(valid_answers) <= total_evaluated * 0.1:
+        sheet_needs_review = True
+        warnings.append(
+            f"Peringatan Lembar {sheet_index}: Sebagian besar kotak jawaban kosong atau tidak terisi "
+            f"({len(valid_answers)}/{total_evaluated} terisi). Perlu review manual."
+        )
+
+    # 2. Sanity check: semua jawaban yang terisi seragam/identik
+    if len(valid_answers) >= 5:
+        from collections import Counter
+        counts = Counter(valid_answers)
+        most_common_opt, most_common_count = counts.most_common(1)[0]
+        if most_common_count >= len(valid_answers) * 0.95:
+            sheet_needs_review = True
+            warnings.append(
+                f"Peringatan Lembar {sheet_index}: Jawaban peserta sangat seragam "
+                f"('{most_common_opt}' sebanyak {most_common_count}/{len(valid_answers)}). Perlu review manual."
+            )
 
     return SheetScanResult(
         sheet_index=sheet_index,
