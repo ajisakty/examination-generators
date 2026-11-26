@@ -129,3 +129,72 @@ def test_scanner_progress_callback():
     assert len(progress_log) >= 3
     assert progress_log[0][0] <= 0.1
     assert progress_log[-1][0] == 1.0
+
+
+def test_scan_24_sheets_3opts_ground_truth(tmp_path):
+    """
+    Uji akurasi pembacaan form 3 opsi pada 24 lembar (tests/fixtures/answer sheet and result_exam 4.pdf)
+    menggunakan acuan tests/fixtures/ground_truth_3opsi.csv:
+    - Lembar dengan S=0 (jumlah_salah == 0) pada set yang sama harus memiliki jawaban identik:
+      - Set A: lembar 2 dan lembar 3
+      - Set B: lembar 14, 15, 16, dan 22
+    - Jumlah salah per lembar harus cocok persis dengan kolom 'jumlah_salah' di ground truth CSV.
+    """
+    import csv
+
+    pdf_path = Path("tests/fixtures/answer sheet and result_exam 4.pdf")
+    gt_path = Path("tests/fixtures/ground_truth_3opsi.csv")
+
+    if not pdf_path.is_file() or not gt_path.is_file():
+        pytest.skip("Fixture 3-opsi atau ground truth CSV tidak ditemukan")
+
+    gt_rows = []
+    with open(gt_path, "r", encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            gt_rows.append(r)
+
+    assert len(gt_rows) == 24
+
+    review_dir = tmp_path / "review_3opts"
+    batch_res = scan_pdf_batch(
+        pdf_path=pdf_path,
+        total_questions=12,
+        review_output_dir=review_dir,
+    )
+
+    assert batch_res.total_sheets == 24
+    sheets = batch_res.sheets
+
+    # Ekstrak jawaban per lembar untuk 12 nomor
+    sheet_answers = {}
+    for idx, sheet in enumerate(sheets):
+        sheet_answers[idx + 1] = {q: sheet.answers[q].selected_option for q in range(1, 13)}
+
+    # 1. Verifikasi lembar S=0 memiliki jawaban identik per set
+    # Set A S=0: Lembar 2 dan Lembar 3
+    assert sheet_answers[2] == sheet_answers[3], (
+        f"Jawaban lembar 2 dan 3 (Set A S=0) tidak identik: "
+        f"L2={sheet_answers[2]}, L3={sheet_answers[3]}"
+    )
+    key_a = sheet_answers[2]
+
+    # Set B S=0: Lembar 14, 15, 16, 22
+    assert sheet_answers[14] == sheet_answers[15] == sheet_answers[16] == sheet_answers[22], (
+        f"Jawaban lembar 14, 15, 16, 22 (Set B S=0) tidak identik: "
+        f"L14={sheet_answers[14]}, L15={sheet_answers[15]}, "
+        f"L16={sheet_answers[16]}, L22={sheet_answers[22]}"
+    )
+    key_b = sheet_answers[14]
+
+    # 2. Verifikasi jumlah salah per lembar cocok dengan ground truth
+    for idx, gt in enumerate(gt_rows):
+        sheet_no = idx + 1
+        expected_set = gt["set"]
+        expected_wrong = int(gt["jumlah_salah"])
+        ref_key = key_a if expected_set == "A" else key_b
+
+        actual_wrong = sum(1 for q in range(1, 13) if sheet_answers[sheet_no][q] != ref_key[q])
+        assert actual_wrong == expected_wrong, (
+            f"Lembar {sheet_no} (Set {expected_set}) jumlah salah tidak cocok: "
+            f"terdeteksi {actual_wrong}, ground truth {expected_wrong}"
+        )

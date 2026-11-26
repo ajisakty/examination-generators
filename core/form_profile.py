@@ -81,30 +81,45 @@ def build_default_form_profile(num_options: int = 4) -> FormProfile:
     # 4 Blok Kolom
     if num_options == 4:
         block_cols = [
-            [234, 262, 290, 318],
-            [518, 546, 574, 602],
-            [744, 772, 800, 828],
-            [966, 994, 1022, 1050],
+            [341, 368, 396, 425],
+            [539, 567, 596, 626],
+            [736, 764, 794, 823],
+            [933, 961, 991, 1020],
         ]
+        exam_boxes = {
+            "A": {"x": 202, "y": 125, "w": 14, "h": 14},
+            "B": {"x": 218, "y": 125, "w": 14, "h": 14},
+            "R": {"x": 235, "y": 125, "w": 14, "h": 14},
+        }
     else:
         block_cols = [
-            [236, 264, 292],
-            [546, 574, 602],
-            [744, 772, 800],
-            [966, 994, 1022],
+            [320, 375, 431],
+            [516, 571, 628],
+            [715, 768, 823],
+            [909, 964, 1019],
         ]
+        exam_boxes = {
+            "A": {"x": 242, "y": 131, "w": 16, "h": 16},
+            "B": {"x": 268, "y": 131, "w": 16, "h": 16},
+            "R": {"x": 295, "y": 131, "w": 16, "h": 16},
+        }
 
-    y_start = 511.0
-    y_step = 29.8
-    box_w = 18
-    box_h = 18
+    row_y = [
+        802, 831, 861, 891, 920,
+        949, 979, 1009, 1042, 1068,
+        1098, 1131, 1158, 1188, 1220,
+        1247, 1278, 1310, 1335, 1370,
+        1397, 1423, 1457, 1484, 1515,
+    ]
+    box_w = 16
+    box_h = 16
 
     # Susun 100 nomor
     q_num = 1
     for block_idx in range(4):
         cols = block_cols[block_idx]
         for row_idx in range(25):
-            cy = int(round(y_start + row_idx * y_step))
+            cy = row_y[row_idx]
             opts_map = {}
             for opt_idx, opt_letter in enumerate(options):
                 cx = cols[opt_idx]
@@ -117,12 +132,7 @@ def build_default_form_profile(num_options: int = 4) -> FormProfile:
             profile.answer_grid[str(q_num)] = opts_map
             q_num += 1
 
-    # Kotak Exam Code (A, B, R)
-    profile.exam_code_boxes = {
-        "A": {"x": 201, "y": 124, "w": 18, "h": 18},
-        "B": {"x": 224, "y": 124, "w": 18, "h": 18},
-        "R": {"x": 247, "y": 124, "w": 18, "h": 18},
-    }
+    profile.exam_code_boxes = exam_boxes
 
     return profile
 
