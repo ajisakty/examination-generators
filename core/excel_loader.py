@@ -340,6 +340,10 @@ def load_and_validate_exam_excel(
         issue=int(config_dict.get("Issue") or 1) if str(config_dict.get("Issue") or "").isdigit() else 1,
         year=int(config_dict.get("Year") or 2026) if str(config_dict.get("Year") or "").isdigit() else 2026,
         model=str(config_dict.get("Model") or "").strip(),
+        sub_course_title=sub_title,
+        exam_name=exam_name,
+        organization=str(config_dict.get("Organization") or "").strip(),
+        form_label=str(config_dict.get("Form Label") or "").strip(),
     )
 
     exam = Exam(
