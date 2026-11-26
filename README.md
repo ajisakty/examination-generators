@@ -38,7 +38,7 @@ Seluruh logika inti berada pada package `core/` tanpa ketergantungan pada GUI at
 | `core/models.py` | Definisi struktur data dataclass (`Exam`, `Question`, `ExamConfig`, `SheetScanResult`, `ExamAnalysisReport`, dll.). |
 | `core/excel_loader.py` | Pembacaan dan validasi lengkap format Excel bank soal (Config, Questions). |
 | `core/shuffler.py` | Pengacakan soal Set B per ATA secara deterministik menggunakan random seed. |
-| `core/exam_pdf.py` | Generator PDF naskah soal resmi (Set A / Set B) dengan layout dua kolom dan footer resmi. |
+| `core/exam_pdf.py` | Generator PDF soal (Set A / B / R): sampul + petunjuk + tabel identitas, header, judul ATA, dan footer resmi. Tampilan mengikuti `legacy/exam_pdf_original.py`. |
 | `core/answer_key.py` | Pembuat dan pembaca Excel Kunci Jawaban 4-sheet (`Meta`, `Set A`, `Set B`, `Bank`) beserta deteksi manipulasi via SHA-256 hash. |
 | `core/scanner_align.py` | Pendeteksi 4 penanda sudut hitam dan penanda orientasi untuk meluruskan halaman scan (perspective warp). |
 | `core/form_profile.py` | Definisi tata letak koordinat kanonikal kisi form (3 opsi vs 4 opsi) dan deteksi otomatis varian form. |

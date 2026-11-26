@@ -27,3 +27,8 @@ Baca `PLAN.md` untuk tujuan, teknologi, dan daftar fase.
 ## Data
 - Isi `tests/fixtures/` bisa memuat soal rahasia dan data peserta. Jangan di-commit, jangan dikirim ke internet.
 - Excel kunci jawaban itu rahasia.
+
+## Tambahan (hasil review)
+- Kalau diminta memindahkan file, salin isinya apa adanya. Jangan menulis ulang. Setelah itu tunjukkan perbandingan hasilnya dengan versi lama.
+- Tampilan PDF soal mengikuti `legacy/exam_pdf_original.py` (sampul, petunjuk, tabel identitas, header, footer, font Carlito di `assets/fonts`). Jangan mengubah tampilan tanpa izin; `tests/test_exam_pdf_parity.py` harus tetap lulus.
+- Tes scanner harus mencakup form 3 opsi dan 4 opsi. Tes yang lulus hanya pada satu varian dianggap belum selesai.

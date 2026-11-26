@@ -31,6 +31,10 @@ class ExamConfig:
     issue: int = 1           # Issue footer
     year: int = 2026         # Year footer
     model: str = ""          # Label model footer
+    sub_course_title: str = ""   # Sub Course Title (baris kedua sampul)
+    exam_name: str = ""          # Exam Name (baris ketiga sampul)
+    organization: str = ""       # Nama organisasi di footer (kosong = bawaan)
+    form_label: str = ""         # Label nomor form di footer (kosong = bawaan)
 
 
 @dataclass
